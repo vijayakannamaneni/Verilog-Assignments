@@ -52,7 +52,7 @@ begin
     if(reset)
     begin 
         state <= state_1;
-        counter<=0;
+       
     end 
     else 
         begin 
