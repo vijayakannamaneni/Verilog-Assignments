@@ -18,6 +18,7 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
+
 module load_counter #(parameter BIT_WIDTH=32)
 (input clk,
 input [31:0] load ,
@@ -129,5 +130,7 @@ begin
     assign pulse =(count==max)?1:0; 
     
 endmodule 
+
+  
 
   
