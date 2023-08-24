@@ -85,114 +85,122 @@ wn_phase_compensation_top dut (
     .slot_num_in_1_tvalid (slot_num_in_1_tvalid)
      );
  
-initial   clock = 0 ;
+initial clock = 0 ;
 always #(clock_period /2 ) clock = ~ clock ;
 
-//reset task 
+// reset task 
 task reset_task ;
-input polarity ;
-begin  
-reset_n = polarity ;
-#50
-reset_n = ~polarity ;
-end 
+    input polarity ;
+    begin  
+        reset_n = polarity ;
+        #50
+        reset_n = ~polarity ;
+    end 
 endtask 
+
+initial begin 
+    rd_config.enable_phase_compensation = 1 ;
+    rd_config.numerology = 3 ;
+    rd_config.CF = 32'd 3350700000 ;
+    rd_config.phase_compensation_mode = 0 ;
+end 
 
 //configure task 
-task configure_1 ;
-begin 
-config_in_tvalid  <= 1 ;
-@(posedge clock )   
-rd_config.enable_phase_compensation = 1 ;
-rd_config.numerology = 3 ;
-rd_config.CF = 32'd 3350700000 ;
-rd_config.phase_compensation_mode = 0 ;
-config_in_tdata = rd_config ;
-if(config_in_tready)  begin 
-    @(posedge clock ) 
-    config_in_tvalid <= 0 ;
-end 
-else  begin 
-    wait(config_in_tready )
-    @(posedge clock ) 
-    config_in_tvalid <=0 ;
-end   
-end 
+task configure_1 ; 
+    input [$bits(config_phaseCompensation)-1:0] rd_config ;
+    begin      
+        config_in_tdata = rd_config ;
+        config_in_tvalid  = 1 ;
+        @(posedge clock )           
+        if(config_in_tready) begin 
+           @(posedge clock ) 
+           config_in_tvalid = 0 ;
+        end 
+        else  begin 
+            wait(config_in_tready )
+            @(posedge clock ) 
+            config_in_tvalid =0 ;
+       end   
+    end 
 endtask 
 
-// reading the reference files from the matlab 
+//reading the reference file from the matlab 
+int x ;
+int y ;
 reg [31:0] data_temp_out ;
 reg [15:0] data_inr ;
-reg[15:0] data_ini ;
-reg[15:0] datap_inr ;
-reg[15:0] datap_ini ;
+reg [15:0] data_ini ;
+reg [15:0] datap_inr ;
+reg [15:0] datap_ini ;
 int fdr ;
 int fdi ;
 int fdpr ;
 int fdpi ;
 int count_1 ;
 initial begin     
-fdr = $fopen ("/home/sekhar/Downloads/ref_rRBdata_file.txt" ,"r") ;
-fdi = $fopen ("/home/sekhar/Downloads/ref_iRBdata_file.txt" ,"r") ;
-fdpr = $fopen ("/home/sekhar/Downloads/ref_phase_comp_real.txt" ,"r");
-fdpi = $fopen ("/home/sekhar/Downloads/ref_phase_comp_imag.txt","r"); 
+     fdr = $fopen ("/home/sekhar/Downloads/ref_rRBdata_file.txt" ,"r") ;
+     fdi = $fopen ("/home/sekhar/Downloads/ref_iRBdata_file.txt" ,"r") ;
+     fdpr = $fopen ("/home/sekhar/Downloads/ref_phase_comp_real.txt" ,"r");
+     fdpi = $fopen ("/home/sekhar/Downloads/ref_phase_comp_imag.txt","r"); 
 end 
-
-// task for input data 
+// writing the data from files to input data port          
 task data_1;
-begin
-while($fscanf(fdr,"%d,",data_inr)==1 | $fscanf(fdi,"%d,",data_ini)==1)
-begin
-    data_in_0_tvalid = 1;   
-    @(posedge clock);          
-    data_out_0_tready = 1;
-    data_in_0_tdata[15:0]=data_inr ;
-    data_in_0_tdata[31:16]=data_ini ;
-    count_1 = count_1 + 1 ;
-    data_in_0_tlast = (count == 22176 )?1:0; 
-    wait(data_in_0_tready ) ;    
- end 
-#10
-data_in_0_tvalid = 0 ;
-data_out_0_tready = 1 ; 
-#60
-data_out_0_tready = 0; 
-end
-endtask
+    begin
+        while($fscanf(fdr,"%d,",data_inr)==1 | $fscanf(fdi,"%d,",data_ini)==1) begin 
+            data_in_0_tdata[15:0]=data_inr ;
+            data_in_0_tdata[31:16]=data_ini ;
+            data_in_0_tvalid = 1;                
+            data_out_0_tready = 1; 
+            if(data_in_0_tready ) begin 
+                @(posedge clock ) 
+                data_in_0_tvalid = 0 ;
+            end 
+            else begin      
+                wait(data_in_0_tready ) ;  
+                @(posedge clock) 
+                data_in_0_tvalid = 0 ;
+            end       
+        end
+        data_out_0_tready = 1 ; 
+        data_in_0_tvalid = 0 ;
+        #60 
+        data_out_0_tready = 0 ;
+    end
+endtask 
 
 // task for slot 
 task slot ;
-input slot_number ;
-begin 
-slot_num_in_0_tvalid =1 ;
-@(posedge clock )        
-slot_num_in_0_tdata = slot_number ; 
-if(slot_num_in_0_tready) begin 
-    @(posedge clock ) 
-    slot_num_in_0_tvalid <= 0 ;
-end 
-else  begin 
-    wait(slot_num_in_0_tready )
-    @(posedge clock ) 
-    slot_num_in_0_tvalid<=0 ;
-end           
-end 
+    input slot_number ;
+    begin 
+        slot_num_in_0_tdata = slot_number ; 
+        slot_num_in_0_tvalid =1 ;
+        @(posedge clock )              
+        if(slot_num_in_0_tready) begin 
+            @(posedge clock ) 
+            slot_num_in_0_tvalid <= 0 ;
+        end 
+        else begin 
+            wait(slot_num_in_0_tready )
+            @(posedge clock ) 
+            slot_num_in_0_tvalid<=0 ;
+        end           
+    end 
 endtask 
-
+     
 initial begin
 reset_task (0);
 fork
-    configure_1 ;
-//  #19800
+    configure_1(rd_config) ;
+    // #19800
     data_1(); 
     slot (1) ;
-join
-$fclose(out);
-$fclose(out1);
-//$stop;
+join 
+   $fclose(out);
+   $fclose(out1);
+   //$stop;
 end
-
-//writing output_data into files 
+ 
+// writing the output data from rtl to files 
 int out ;
 int out1 ;
 int counter ;
@@ -200,65 +208,62 @@ logic signed [15:0] out_1;
 logic signed [15:0] out_2 ;
 assign out_1 = data_out_0_tdata[15:0];
 assign out_2 = data_out_0_tdata[31:16];
-
 initial begin 
-out = $fopen("/home/sekhar/Downloads/rtl_out_real.txt","w" );
-out1= $fopen("/home/sekhar/Downloads/rtl_out_imag.txt","w" );
+    out = $fopen("/home/sekhar/Downloads/rtl_out_real.txt","w" );
+    out1= $fopen("/home/sekhar/Downloads/rtl_out_imag.txt","w" );
 end
-always@(posedge clock)begin
+
+ always@(posedge clock)begin
     if(data_out_0_tready && data_out_0_tvalid ) begin 
         $fdisplay(out ,"%d" , out_1);
         $fdisplay(out1,"%d", out_2) ;
-        counter = counter +1 ;      
+        counter = counter +1 ;        
     end
-end 
+ end 
 
-//writing the phase_output from wn_phase_compensation_params into a file
-int fp_write;
-int count ;
-initial begin
+ // writing the phase_out data from phase_params to file 
+ int fp_write;
+ int count ;
+ initial begin
 fp_write = $fopen("/home/sekhar/Downloads/phase_out_rtl.txt","w");
-if(fp_write == 0 )begin
-$stop ;
+if(fp_write == 0) begin
+    $stop ;
 end
 end   
 
 always@(posedge clock ) begin 
-if(dut.wn_phase_compensation_params_inst.phase_out_tvalid && dut.wn_phase_compensation_params_inst.phase_out_tready)begin
-    $fdisplay(fp_write,"%d\n",dut.wn_phase_compensation_params_inst.phase_out_tdata[63:0]);
-    $display ("phaseout=%d\n ",dut.wn_phase_compensation_params_inst.phase_out_tdata[63:0] );
-end 
-if(dut.wn_phase_compensation_params_inst.phase_out_tlast ==1 )begin 
-    $fclose(fp_write);
-end
+    if(dut.wn_phase_compensation_params_inst.phase_out_tvalid && dut.wn_phase_compensation_params_inst.phase_out_tready) begin
+        $fdisplay(fp_write,"%d\n",dut.wn_phase_compensation_params_inst.phase_out_tdata[63:0]);
+        $display ("phaseout=%d\n ",dut.wn_phase_compensation_params_inst.phase_out_tdata[63:0] );
+    end 
+    if(dut.wn_phase_compensation_params_inst.phase_out_tlast ==1) begin 
+        $fclose(fp_write);
+    end
 end
 
-//writing the input_phase from precompensation into files 
+// writing the phase_in data from wn_precompensation to files
 int fr_write ;
 int fi_write ;
 initial begin 
 fr_write = $fopen("/home/sekhar/Downloads/phase_in_real_rtl.txt ","w");
 fi_write = $fopen("/home/sekhar/Downloads/phase_in_imag_rtl.txt ","w");
 if(fi_write == 0 && fr_write==0 ) begin 
-$stop ;
+    $stop ;
 end 
 end
 
 always@(posedge clock) begin 
-if(dut.wn_phase_pre_compensation.phase_in_tvalid && dut.wn_phase_pre_compensation.phase_in_tready) begin 
-    $fdisplay (fr_write ,"%d",dut.wn_phase_pre_compensation.phase_in_tdata[15:0]);
-    $fdisplay (fi_write ,"%d ",dut.wn_phase_pre_compensation.phase_in_tdata[31:16]);
-    $display ("phase_in=%d\n",dut.wn_phase_pre_compensation.phase_in_tdata[15:0]);
-end
-//end
-
-if(dut.wn_phase_pre_compensation.phase_in_tlast ==1 ) begin 
-    $fclose(fr_write);
-    $fclose(fi_write);
+    if(dut.wn_phase_pre_compensation.phase_in_tvalid && dut.wn_phase_pre_compensation.phase_in_tready) begin 
+        $fdisplay (fr_write ,"%d",dut.wn_phase_pre_compensation.phase_in_tdata[15:0]);
+        $fdisplay (fi_write ,"%d ",dut.wn_phase_pre_compensation.phase_in_tdata[31:16]);
+        $display ("phase_in=%d\n",dut.wn_phase_pre_compensation.phase_in_tdata[15:0]);
+    end
+    if(dut.wn_phase_pre_compensation.phase_in_tlast ==1) begin 
+        $fclose(fr_write);
+        $fclose(fi_write);
     end
 end
 endmodule 
-
 
 
 
