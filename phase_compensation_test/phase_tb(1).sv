@@ -93,7 +93,7 @@ task reset_task ;
     input polarity ;
     begin  
         reset_n = polarity ;
-        #50
+        repeat(5)@(posedge clock ) ;
         reset_n = ~polarity ;
     end 
 endtask 
